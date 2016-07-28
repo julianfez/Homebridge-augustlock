@@ -1,3 +1,5 @@
 # Homebridge-augustlock
-Not Finish yet
+Not Finish yet making some changes
+
+
 August Lock plugin for  https://github.com/nfarina/homebridge
