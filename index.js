@@ -1,4 +1,5 @@
 var request = require("request");
+var fs = require("fs");
 var Service, Characteristic;
 
 module.exports = function(homebridge) {
@@ -24,6 +25,21 @@ function augustLockAccesory(log, config) {
         .getCharacteristic(Characteristic.LockTargetState)
         .on('get', this.getState.bind(this))
         .on('set', this.setState.bind(this));
+
+    this.battservice = new Service.BatteryService(this.name);
+
+    this.battservice
+        .getCharacteristic(Characteristic.BatteryLevel)
+        .on('get', this.getBattery.bind(this));
+
+    this.battservice
+        .getCharacteristic(Characteristic.ChargingState)
+        .on('get', this.getCharging.bind(this));
+
+    this.battservice
+        .getCharacteristic(Characteristic.StatusLowBattery)
+        .on('get', this.getLowBatt.bind(this));
+
 }
 
 augustLockAccesory.prototype.getState = function(callback) {
@@ -56,6 +72,70 @@ augustLockAccesory.prototype.getState = function(callback) {
     }.bind(this));
 }
 
+augustLockAccesory.prototype.getBattery = function(callback) {
+    this.log("Getting current battery...");
+
+    request.get({
+        url: "https://api-production.august.com/locks/"+this.lockID,
+        "headers": {
+            "Content-Type": 'application/json',
+            'x-kease-api-key': '14445b6a2dba',
+            'x-august-access-token': this.accessToken,
+            'Proxy-Connection': 'keep-alive',
+            'userAgent': 'August/4.4.42 (iPhone; iOS 9.0.2; Scale/2.00)',
+            'accept-version': '0.0.1',
+            'accept-Language': 'en-US;q=1'
+        }
+    }, function(err, response, body) {
+
+        if (!err && response.statusCode == 200) {
+            var json = JSON.parse(body);
+            var batt = json.battery * 100;
+            this.log("Lock battery is %s", batt);
+            callback(null, batt); // success
+        }
+        else {
+            this.log("Error getting battery (status code %s): %s", response.statusCode, err);
+            callback(err);
+        }
+    }.bind(this));
+}
+
+augustLockAccesory.prototype.getCharging = function(callback) {
+    callback(null, Characteristic.ChargingState.NOT_CHARGING);
+}
+
+augustLockAccesory.prototype.getLowBatt = function(callback) {
+    this.log("Getting current battery...");
+
+    request.get({
+        url: "https://api-production.august.com/locks/"+this.lockID,
+        "headers": {
+            "Content-Type": 'application/json',
+            'x-kease-api-key': '14445b6a2dba',
+            'x-august-access-token': this.accessToken,
+            'Proxy-Connection': 'keep-alive',
+            'userAgent': 'August/4.4.42 (iPhone; iOS 9.0.2; Scale/2.00)',
+            'accept-version': '0.0.1',
+            'accept-Language': 'en-US;q=1'
+        }
+    }, function(err, response, body) {
+
+        if (!err && response.statusCode == 200) {
+            var json = JSON.parse(body);
+            var batt = json.battery;
+            this.log("Lock battery is %s", batt);
+            var low = (batt > 0.20) ? Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL : Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW;
+            callback(null, low); // success
+        }
+        else {
+            this.log("Error getting battery (status code %s): %s", response.statusCode, err);
+            callback(err);
+        }
+    }.bind(this));
+}
+
+
 augustLockAccesory.prototype.setState = function(state, callback) {
     var augustState = (state == Characteristic.LockTargetState.SECURED) ? "lock" : "unlock";
 
@@ -84,6 +164,12 @@ augustLockAccesory.prototype.setState = function(state, callback) {
             this.service
                 .setCharacteristic(Characteristic.LockCurrentState, currentState);
 
+            var json = JSON.parse(body);
+            var batt = json.battery * 100;
+
+            this.battservice
+                .setCharacteristic(Characteristic.BatteryLevel, batt);
+
             callback(null); // success
         }
         else {
@@ -94,5 +180,5 @@ augustLockAccesory.prototype.setState = function(state, callback) {
 },
 
     augustLockAccesory.prototype.getServices = function() {
-        return [this.service];
+        return [this.service, this.battservice];
     }
