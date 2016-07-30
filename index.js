@@ -170,7 +170,8 @@ augustLockAccesory.prototype.setState = function(state, callback) {
             this.battservice
                 .setCharacteristic(Characteristic.BatteryLevel, batt);
 
-            callback(null); // success
+            clearTimeout();
+            callback(err, state);
         }
         else {
             this.log("Error '%s' setting lock state. Response: %s", err, body);
