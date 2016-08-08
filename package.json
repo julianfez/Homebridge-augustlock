@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "request": "2.49.x",
-    "request-interval": "*"
+    "node-async-loop": "*"
   }
 
 }
