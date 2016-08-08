@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "request": "2.49.x",
-    "every-time": "*"
+    "request-interval": "*"
   }
 
 }
